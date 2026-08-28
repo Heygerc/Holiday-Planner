@@ -123,3 +123,5 @@ Provide a structured, engaging, and high-value response in JSON format matching 
   }
 }
 
+export default handleInsightRequest;
+

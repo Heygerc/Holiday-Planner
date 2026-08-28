@@ -33,19 +33,48 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
   const [showNextUpcomingOnly, setShowNextUpcomingOnly] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<'grid' | 'table'>('grid');
 
+  // Helper to fetch with dual-layer fallback (Local API -> Nager.Date Direct -> Fallback)
+  async function fetchWithFallback<T>(localUrl: string, directUrl: string, fallbackValue: T): Promise<T> {
+    try {
+      const localRes = await fetch(localUrl);
+      if (localRes.ok) {
+        const data = await localRes.json();
+        if (data && (!Array.isArray(data) || data.length > 0)) {
+          return data as T;
+        }
+      }
+    } catch {
+      // Ignore local error and try direct
+    }
+
+    try {
+      const directRes = await fetch(directUrl);
+      if (directRes.ok) {
+        const directData = await directRes.json();
+        return directData as T;
+      }
+    } catch {
+      // Ignore direct error and use fallback
+    }
+
+    return fallbackValue;
+  }
+
   // 1. GET https://date.nager.at/api/v3/AvailableCountries
   useEffect(() => {
     async function loadCountries() {
       try {
-        const res = await fetch('/api/holidays/countries');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setCountries(data);
-          }
+        const loaded = await fetchWithFallback<CountryInfo[]>(
+          '/api/holidays/countries',
+          'https://date.nager.at/api/v3/AvailableCountries',
+          NAGER_COUNTRIES
+        );
+        if (Array.isArray(loaded) && loaded.length > 0) {
+          setCountries(loaded);
         }
       } catch (e) {
         console.error("Failed to load available countries:", e);
+        setCountries(NAGER_COUNTRIES);
       }
     }
     loadCountries();
@@ -56,50 +85,59 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
     async function loadCountryHolidayData() {
       setLoading(true);
       try {
-        const [holidaysRes, lwRes, isTodayRes, nextRes] = await Promise.all([
+        // Run all API queries in parallel with direct fallbacks
+        const [holidaysData, lwData, isTodayResult, nextData] = await Promise.all([
           // GET /PublicHolidays/{Year}/{CountryCode}
-          fetch(`/api/holidays/${selectedYear}/${selectedCountryCode}`),
+          fetchWithFallback<PublicHoliday[]>(
+            `/api/holidays/${selectedYear}/${selectedCountryCode}`,
+            `https://date.nager.at/api/v3/PublicHolidays/${selectedYear}/${selectedCountryCode}`,
+            []
+          ),
           // GET /LongWeekend/{Year}/{CountryCode}
-          fetch(`/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`),
+          fetchWithFallback<LongWeekend[]>(
+            `/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`,
+            `https://date.nager.at/api/v3/LongWeekend/${selectedYear}/${selectedCountryCode}`,
+            []
+          ),
           // GET /IsTodayPublicHoliday/{CountryCode}
-          fetch(`/api/holidays/is-today/${selectedCountryCode}`),
+          (async () => {
+            try {
+              const res = await fetch(`/api/holidays/is-today/${selectedCountryCode}`);
+              if (res.ok) {
+                const data = await res.json();
+                return Boolean(data?.isTodayHoliday);
+              }
+            } catch {
+              // fallback to direct nager call
+            }
+            try {
+              const directRes = await fetch(`https://date.nager.at/api/v3/IsTodayPublicHoliday/${selectedCountryCode}`);
+              return directRes.status === 200;
+            } catch {
+              return false;
+            }
+          })(),
           // GET /NextPublicHolidays/{CountryCode}
-          fetch(`/api/holidays/next/${selectedCountryCode}`)
+          fetchWithFallback<PublicHoliday[]>(
+            `/api/holidays/next/${selectedCountryCode}`,
+            `https://date.nager.at/api/v3/NextPublicHolidays/${selectedCountryCode}`,
+            []
+          )
         ]);
 
-        let loadedHolidays: PublicHoliday[] = [];
-        if (holidaysRes.ok) {
-          const data = await holidaysRes.json();
-          loadedHolidays = Array.isArray(data) ? data : [];
-          setHolidays(loadedHolidays);
-        }
+        setHolidays(Array.isArray(holidaysData) ? holidaysData : []);
+        setLongWeekends(Array.isArray(lwData) ? lwData : []);
+        setIsTodayHoliday(isTodayResult);
 
-        if (lwRes.ok) {
-          const lwData = await lwRes.json();
-          setLongWeekends(Array.isArray(lwData) ? lwData : []);
-        }
-
-        if (isTodayRes.ok) {
-          const todayData = await isTodayRes.json();
-          const isHolidayToday = Boolean(todayData?.isTodayHoliday);
-          setIsTodayHoliday(isHolidayToday);
-
-          if (isHolidayToday && loadedHolidays.length > 0) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const match = loadedHolidays.find(h => h.date === todayStr);
-            setTodayHolidayName(match ? match.name : 'Public Holiday Today');
-          } else {
-            setTodayHolidayName(null);
-          }
+        if (isTodayResult && holidaysData && holidaysData.length > 0) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const match = holidaysData.find(h => h.date === todayStr);
+          setTodayHolidayName(match ? match.name : 'Public Holiday Today');
         } else {
-          setIsTodayHoliday(false);
           setTodayHolidayName(null);
         }
 
-        if (nextRes.ok) {
-          const nextData = await nextRes.json();
-          setNextHolidays(Array.isArray(nextData) ? nextData : []);
-        }
+        setNextHolidays(Array.isArray(nextData) ? nextData : []);
       } catch (err) {
         console.error("Error loading holiday data:", err);
       } finally {

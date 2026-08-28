@@ -30,6 +30,43 @@ async function startServer() {
     }
   });
 
+  // Holiday Proxy - Is Today Public Holiday
+  app.get("/api/holidays/is-today/:countryCode", async (req, res) => {
+    const { countryCode } = req.params;
+    try {
+      const response = await fetch(`https://date.nager.at/api/v3/IsTodayPublicHoliday/${countryCode}`);
+      // Nager returns 200 (is holiday), 204 (not a holiday), or 404 (country not supported)
+      if (response.status === 200) {
+        return res.json({ isTodayHoliday: true, status: 200 });
+      } else if (response.status === 204) {
+        return res.json({ isTodayHoliday: false, status: 204 });
+      } else {
+        return res.json({ isTodayHoliday: false, status: response.status });
+      }
+    } catch (err) {
+      console.warn(`Could not check IsTodayPublicHoliday for ${countryCode}:`, err);
+      res.json({ isTodayHoliday: false, status: 204 });
+    }
+  });
+
+  // Holiday Proxy - Next Public Holidays for a specific country
+  app.get("/api/holidays/next/:countryCode", async (req, res) => {
+    const { countryCode } = req.params;
+    try {
+      const response = await fetch(`https://date.nager.at/api/v3/NextPublicHolidays/${countryCode}`);
+      if (!response.ok) throw new Error(`Nager API status: ${response.status}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err) {
+      console.warn(`Could not fetch next holidays for ${countryCode}:`, err);
+      const currentYear = new Date().getFullYear();
+      const allHolidays = getFallbackHolidays(countryCode, currentYear);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const upcoming = allHolidays.filter(h => h.date >= todayStr);
+      res.json(upcoming);
+    }
+  });
+
   // Holiday Proxy - Public Holidays by Year and CountryCode
   app.get("/api/holidays/:year/:countryCode", async (req, res) => {
     const { year, countryCode } = req.params;

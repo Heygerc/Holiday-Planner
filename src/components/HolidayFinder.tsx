@@ -3,7 +3,8 @@ import { PublicHoliday, LongWeekend, CountryInfo } from '../types';
 import { NAGER_COUNTRIES } from '../utils/countriesData';
 import { 
   Calendar, Search, Sparkles, Plane, MapPin, 
-  Clock, ArrowRight, Zap, Info, Filter, CheckCircle2, Globe 
+  Clock, ArrowRight, Zap, Info, Filter, CheckCircle2, Globe,
+  CalendarDays, Flame, CheckCircle, Bell, ArrowUpRight
 } from 'lucide-react';
 
 interface HolidayFinderProps {
@@ -22,13 +23,17 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
   const [longWeekends, setLongWeekends] = useState<LongWeekend[]>([]);
+  const [nextHolidays, setNextHolidays] = useState<PublicHoliday[]>([]);
+  const [isTodayHoliday, setIsTodayHoliday] = useState<boolean | null>(null);
+  const [todayHolidayName, setTodayHolidayName] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [filterLongWeekendsOnly, setFilterLongWeekendsOnly] = useState<boolean>(false);
+  const [showNextUpcomingOnly, setShowNextUpcomingOnly] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<'grid' | 'table'>('grid');
 
-  // Load countries on mount
+  // 1. GET https://date.nager.at/api/v3/AvailableCountries
   useEffect(() => {
     async function loadCountries() {
       try {
@@ -40,30 +45,60 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
           }
         }
       } catch (e) {
-        console.error("Failed to load countries:", e);
+        console.error("Failed to load available countries:", e);
       }
     }
     loadCountries();
   }, []);
 
-  // Fetch holidays & long weekends when country or year changes
+  // 2. GET PublicHolidays/{Year}/{CountryCode}, IsTodayPublicHoliday/{CountryCode}, NextPublicHolidays/{CountryCode}
   useEffect(() => {
-    async function loadHolidayData() {
+    async function loadCountryHolidayData() {
       setLoading(true);
       try {
-        const [holidaysRes, lwRes] = await Promise.all([
+        const [holidaysRes, lwRes, isTodayRes, nextRes] = await Promise.all([
+          // GET /PublicHolidays/{Year}/{CountryCode}
           fetch(`/api/holidays/${selectedYear}/${selectedCountryCode}`),
-          fetch(`/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`)
+          // GET /LongWeekend/{Year}/{CountryCode}
+          fetch(`/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`),
+          // GET /IsTodayPublicHoliday/{CountryCode}
+          fetch(`/api/holidays/is-today/${selectedCountryCode}`),
+          // GET /NextPublicHolidays/{CountryCode}
+          fetch(`/api/holidays/next/${selectedCountryCode}`)
         ]);
 
+        let loadedHolidays: PublicHoliday[] = [];
         if (holidaysRes.ok) {
           const data = await holidaysRes.json();
-          setHolidays(Array.isArray(data) ? data : []);
+          loadedHolidays = Array.isArray(data) ? data : [];
+          setHolidays(loadedHolidays);
         }
 
         if (lwRes.ok) {
           const lwData = await lwRes.json();
           setLongWeekends(Array.isArray(lwData) ? lwData : []);
+        }
+
+        if (isTodayRes.ok) {
+          const todayData = await isTodayRes.json();
+          const isHolidayToday = Boolean(todayData?.isTodayHoliday);
+          setIsTodayHoliday(isHolidayToday);
+
+          if (isHolidayToday && loadedHolidays.length > 0) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const match = loadedHolidays.find(h => h.date === todayStr);
+            setTodayHolidayName(match ? match.name : 'Public Holiday Today');
+          } else {
+            setTodayHolidayName(null);
+          }
+        } else {
+          setIsTodayHoliday(false);
+          setTodayHolidayName(null);
+        }
+
+        if (nextRes.ok) {
+          const nextData = await nextRes.json();
+          setNextHolidays(Array.isArray(nextData) ? nextData : []);
         }
       } catch (err) {
         console.error("Error loading holiday data:", err);
@@ -73,14 +108,16 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
     }
 
     if (selectedCountryCode) {
-      loadHolidayData();
+      loadCountryHolidayData();
     }
   }, [selectedCountryCode, selectedYear]);
 
   const selectedCountryName = countries.find(c => c.countryCode === selectedCountryCode)?.name || selectedCountryCode;
 
   // Filter holidays
-  const filteredHolidays = holidays.filter(holiday => {
+  const baseHolidayList = showNextUpcomingOnly && nextHolidays.length > 0 ? nextHolidays : holidays;
+
+  const filteredHolidays = baseHolidayList.filter(holiday => {
     const matchesSearch = 
       holiday.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       holiday.localName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -149,11 +186,34 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
                 <Calendar className="w-5 h-5" />
               </span>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  Global Holidays Explorer
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                    Global Holidays Explorer
+                  </h1>
+                  
+                  {/* Realtime API status badge for IsTodayPublicHoliday */}
+                  {isTodayHoliday !== null && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                      isTodayHoliday 
+                        ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse' 
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {isTodayHoliday ? (
+                        <>
+                          <Flame className="w-3 h-3 text-amber-600" />
+                          <span>Today is a Holiday in {selectedCountryCode}!</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-3 h-3 text-slate-400" />
+                          <span>Regular Business Day Today</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs sm:text-sm text-slate-500">
-                  Identify upcoming public holidays and long-weekend bridge opportunities worldwide.
+                  Powered by Nager.Date API with live holiday dates, next upcoming holidays, and long-weekend bridge calculations.
                 </p>
               </div>
             </div>
@@ -167,13 +227,16 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
                   Destination Country
                 </label>
                 <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded">
-                  {countries.length} Countries
+                  {countries.length} Countries Available
                 </span>
               </div>
               <select
                 id="country-select"
                 value={selectedCountryCode}
-                onChange={(e) => setSelectedCountryCode(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCountryCode(e.target.value);
+                  setShowNextUpcomingOnly(false);
+                }}
                 className="w-56 sm:w-64 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white cursor-pointer shadow-xs"
               >
                 {countries.map((c) => (
@@ -191,7 +254,10 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
               <select
                 id="year-select"
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                onChange={(e) => {
+                  setSelectedYear(parseInt(e.target.value, 10));
+                  setShowNextUpcomingOnly(false);
+                }}
                 className="w-28 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white cursor-pointer shadow-xs"
               >
                 <option value={2025}>2025</option>
@@ -231,7 +297,10 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
             <button
               key={pop.code}
               type="button"
-              onClick={() => setSelectedCountryCode(pop.code)}
+              onClick={() => {
+                setSelectedCountryCode(pop.code);
+                setShowNextUpcomingOnly(false);
+              }}
               className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 transition-colors ${
                 selectedCountryCode === pop.code
                   ? 'bg-blue-600 text-white shadow-xs'
@@ -242,6 +311,45 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
             </button>
           ))}
         </div>
+
+        {/* Next Upcoming Holidays Quick Bar (NextPublicHolidays/{CountryCode}) */}
+        {nextHolidays.length > 0 && (
+          <div className="pt-3 pb-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-blue-50/50 -mx-4 sm:-mx-6 px-4 sm:px-6 mt-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-600 text-white font-semibold text-[10px]">
+                <Bell className="w-3 h-3" /> Next Up
+              </span>
+              <span className="font-semibold text-slate-800">
+                {nextHolidays[0].name}
+              </span>
+              <span className="text-slate-500">
+                ({new Date(nextHolidays[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNextUpcomingOnly(!showNextUpcomingOnly)}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  showNextUpcomingOnly
+                    ? 'bg-blue-700 text-white shadow-xs'
+                    : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'
+                }`}
+              >
+                {showNextUpcomingOnly ? 'Showing Next Upcoming (Clear)' : `Show Next Upcoming (${nextHolidays.length})`}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectHolidayForTrip(nextHolidays[0])}
+                className="text-xs px-2.5 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+              >
+                Plan Immediate Trip →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filter Controls Row */}
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -320,11 +428,18 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm sm:text-base text-white">
-              Smart Leave Strategy for {selectedCountryName} in {selectedYear}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm sm:text-base text-white">
+                Leave Strategy for {selectedCountryName} ({showNextUpcomingOnly ? 'Next Upcoming' : selectedYear})
+              </h3>
+              {isTodayHoliday && (
+                <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-bold text-[10px] tracking-wide uppercase">
+                  🎉 Holiday Today
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-slate-300 mt-0.5">
-              Found <strong className="text-amber-400 font-semibold">{filteredHolidays.length} public holidays</strong> and <strong className="text-blue-300 font-semibold">{longWeekends.length} long weekend periods</strong>. Click any holiday below to launch direct flight & hotel searches on sg.trip.com or build a day-by-day itinerary.
+              Found <strong className="text-amber-400 font-semibold">{filteredHolidays.length} holidays</strong> and <strong className="text-blue-300 font-semibold">{longWeekends.length} long weekend periods</strong>. Click any holiday below to launch direct searches on Trip.com or generate a day-by-day itinerary.
             </p>
           </div>
         </div>
@@ -332,7 +447,7 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
         <div className="flex items-center gap-2 self-start md:self-center shrink-0">
           <span className="text-xs text-slate-400">Total Holidays:</span>
           <span className="px-2.5 py-1 rounded bg-blue-600 font-bold text-xs text-white">
-            {holidays.length} Days
+            {filteredHolidays.length} Days
           </span>
         </div>
       </div>
@@ -516,3 +631,4 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
     </div>
   );
 };
+

@@ -126,8 +126,26 @@ export const CodeExportModal: React.FC<CodeExportModalProps> = ({ isOpen, onClos
       </div>
     </section>
 
+    <!-- 5. Community & Discussion (Disqus) -->
+    <section id="section-community" class="card-surface">
+      <header class="section-header">
+        <h2>Traveler Community & Discussion</h2>
+        <p>Connect with fellow travelers, exchange holiday leave strategies, and share tips.</p>
+      </header>
+      <div id="disqus_thread"></div>
+      <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    </section>
+
   </main>
 
+  <script>
+    (function() {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://https-holidayplanner-beta-vercel-app.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', +new Date());
+      (d.head || d.body).appendChild(s);
+    })();
+  </script>
   <script src="app.js"></script>
 </body>
 </html>`,

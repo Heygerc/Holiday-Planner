@@ -6,11 +6,12 @@ import { FlightHotelSearch } from './components/FlightHotelSearch';
 import { ItineraryPlanner } from './components/ItineraryPlanner';
 import { BudgetCalculator } from './components/BudgetCalculator';
 import { TravelInsightView } from './components/TravelInsightView';
+import { DisqusComments } from './components/DisqusComments';
 import { CodeExportModal } from './components/CodeExportModal';
 import { Compass, Sparkles, Check, Info } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight'>('holidays');
+  const [activeTab, setActiveTab] = useState<'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight' | 'community'>('holidays');
   const [currency, setCurrency] = useState<string>('SGD');
   const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -386,6 +387,15 @@ export default function App() {
             onImportAIIterary={handleImportAIIterary}
           />
         )}
+
+        {/* TAB 6: Community & Discussion (Disqus) */}
+        {activeTab === 'community' && (
+          <DisqusComments
+            pageUrl={typeof window !== 'undefined' ? window.location.href : 'https://holidayplanner-beta.vercel.app'}
+            pageIdentifier="horizon-planner-community"
+            title="Horizon Planner - Global Holiday & Travel Community"
+          />
+        )}
       </main>
 
       {/* Semantic Footer */}
@@ -398,7 +408,12 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
-            <span>Global Holiday Calendar & Travel Architecture</span>
+            <button
+              onClick={() => setActiveTab('community')}
+              className="text-slate-300 hover:text-white transition-colors"
+            >
+              💬 Community Forum (Disqus)
+            </button>
             <span>•</span>
             <button
               onClick={() => setShowCodeModal(true)}

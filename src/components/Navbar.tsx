@@ -1,10 +1,10 @@
 import React from 'react';
-import { Calendar, Plane, MapPin, Calculator, Sparkles, Compass, Code, DollarSign } from 'lucide-react';
+import { Calendar, Plane, MapPin, Calculator, Sparkles, Compass, Code, DollarSign, MessageSquare } from 'lucide-react';
 import { CURRENCY_RATES } from '../utils/tripLinks';
 
 interface NavbarProps {
-  activeTab: 'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight';
-  setActiveTab: (tab: 'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight') => void;
+  activeTab: 'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight' | 'community';
+  setActiveTab: (tab: 'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight' | 'community') => void;
   currency: string;
   setCurrency: (c: string) => void;
   selectedDestination: string;
@@ -24,7 +24,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'flights-hotels' as const, label: '2. Flights & Hotels', icon: Plane, subtitle: 'Search & Compare' },
     { id: 'itinerary' as const, label: '3. Itinerary Planner', icon: MapPin, subtitle: 'Timeline & Nodes' },
     { id: 'budget' as const, label: '4. Budget Calculator', icon: Calculator, subtitle: 'Real-time Math' },
-    { id: 'ai-insight' as const, label: 'AI Trip Advisor', icon: Sparkles, subtitle: 'Smart Recommendations' }
+    { id: 'ai-insight' as const, label: 'AI Trip Advisor', icon: Sparkles, subtitle: 'Smart Recommendations' },
+    { id: 'community' as const, label: 'Community', icon: MessageSquare, subtitle: 'Discussion & Tips' }
   ];
 
   return (

@@ -1,0 +1,7 @@
+{
+  "name": "Horizon Planner",
+  "description": "Global holiday explorer, flight and hotel finder, interactive itinerary planner, and travel budget calculator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

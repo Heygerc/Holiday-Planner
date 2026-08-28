@@ -1,0 +1,2 @@
+/* Horizon Planner Stylesheet (Alias for styles.css) */
+@import "./styles.css";

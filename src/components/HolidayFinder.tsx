@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PublicHoliday, LongWeekend, CountryInfo } from '../types';
+import { NAGER_COUNTRIES } from '../utils/countriesData';
 import { 
   Calendar, Search, Sparkles, Plane, MapPin, 
-  Clock, ArrowRight, Zap, Info, Filter, CheckCircle2 
+  Clock, ArrowRight, Zap, Info, Filter, CheckCircle2, Globe 
 } from 'lucide-react';
 
 interface HolidayFinderProps {
@@ -16,7 +17,7 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
   onSearchTripDotCom,
   onAskAIForHoliday
 }) => {
-  const [countries, setCountries] = useState<CountryInfo[]>([]);
+  const [countries, setCountries] = useState<CountryInfo[]>(NAGER_COUNTRIES);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('JP');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [holidays, setHolidays] = useState<PublicHoliday[]>([]);
@@ -161,14 +162,19 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
           {/* Country & Year Selectors */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                Destination Country
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Destination Country
+                </label>
+                <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-1.5 py-0.5 rounded">
+                  {countries.length} Countries
+                </span>
+              </div>
               <select
                 id="country-select"
                 value={selectedCountryCode}
                 onChange={(e) => setSelectedCountryCode(e.target.value)}
-                className="w-48 sm:w-56 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="w-56 sm:w-64 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white cursor-pointer shadow-xs"
               >
                 {countries.map((c) => (
                   <option key={c.countryCode} value={c.countryCode}>
@@ -186,7 +192,7 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
                 id="year-select"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-                className="w-28 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="w-28 bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white cursor-pointer shadow-xs"
               >
                 <option value={2025}>2025</option>
                 <option value={2026}>2026</option>
@@ -195,6 +201,46 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
               </select>
             </div>
           </div>
+        </div>
+
+        {/* Popular Country Quick Pills */}
+        <div className="pt-3 pb-2 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto text-xs scrollbar-thin">
+          <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1 text-[11px]">
+            <Globe className="w-3.5 h-3.5 text-slate-400" />
+            Popular:
+          </span>
+          {[
+            { code: 'JP', name: 'Japan' },
+            { code: 'SG', name: 'Singapore' },
+            { code: 'KR', name: 'South Korea' },
+            { code: 'TH', name: 'Thailand' },
+            { code: 'MY', name: 'Malaysia' },
+            { code: 'VN', name: 'Vietnam' },
+            { code: 'ID', name: 'Indonesia' },
+            { code: 'TW', name: 'Taiwan' },
+            { code: 'HK', name: 'Hong Kong' },
+            { code: 'AU', name: 'Australia' },
+            { code: 'NZ', name: 'New Zealand' },
+            { code: 'GB', name: 'United Kingdom' },
+            { code: 'US', name: 'United States' },
+            { code: 'FR', name: 'France' },
+            { code: 'IT', name: 'Italy' },
+            { code: 'DE', name: 'Germany' },
+            { code: 'CH', name: 'Switzerland' }
+          ].map((pop) => (
+            <button
+              key={pop.code}
+              type="button"
+              onClick={() => setSelectedCountryCode(pop.code)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 transition-colors ${
+                selectedCountryCode === pop.code
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {pop.name}
+            </button>
+          ))}
         </div>
 
         {/* Filter Controls Row */}

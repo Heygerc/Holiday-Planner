@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, Plane, MapPin, Calculator, Sparkles, Compass, Code, DollarSign, MessageSquare } from 'lucide-react';
+import { Calendar, Plane, MapPin, Calculator, Sparkles, Compass, Code, DollarSign, MessageSquare, User, BookmarkCheck, LogOut } from 'lucide-react';
 import { CURRENCY_RATES } from '../utils/tripLinks';
+import { UserProfile } from '../types/auth';
 
 interface NavbarProps {
   activeTab: 'holidays' | 'flights-hotels' | 'itinerary' | 'budget' | 'ai-insight' | 'community';
@@ -9,6 +10,11 @@ interface NavbarProps {
   setCurrency: (c: string) => void;
   selectedDestination: string;
   onOpenCodeModal: () => void;
+  user: UserProfile | null;
+  savedCount: number;
+  onOpenAuthModal: () => void;
+  onOpenSavedModal: () => void;
+  onSignOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,7 +23,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   currency,
   setCurrency,
   selectedDestination,
-  onOpenCodeModal
+  onOpenCodeModal,
+  user,
+  savedCount,
+  onOpenAuthModal,
+  onOpenSavedModal,
+  onSignOut
 }) => {
   const tabs = [
     { id: 'holidays' as const, label: '1. Global Holidays', icon: Calendar, subtitle: 'Calendar & Bridge Days' },
@@ -54,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Current Selection & Global Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {selectedDestination && (
               <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
                 <span className="text-slate-400">Target:</span>
@@ -62,8 +73,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
+            {/* Saved Trips Button */}
+            <button
+              onClick={onOpenSavedModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer shadow-2xs"
+              title="View your saved trip plans"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Saved Trips</span>
+              {savedCount > 0 && (
+                <span className="w-4 h-4 bg-amber-500 text-slate-950 font-bold rounded-full text-[10px] flex items-center justify-center">
+                  {savedCount}
+                </span>
+              )}
+            </button>
+
             {/* Currency Selector */}
-            <div className="flex items-center bg-slate-800 border border-slate-700 rounded px-2 py-1">
+            <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-2 py-1">
               <DollarSign className="w-3.5 h-3.5 text-blue-400 mr-1" />
               <select
                 value={currency}
@@ -79,16 +105,47 @@ export const Navbar: React.FC<NavbarProps> = ({
               </select>
             </div>
 
+            {/* Account / User profile button */}
+            {user ? (
+              <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg p-1">
+                <button
+                  onClick={onOpenSavedModal}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-200 hover:text-white transition-colors cursor-pointer"
+                  title={`Signed in as ${user.email}`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center text-[10px] font-bold">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden md:inline font-medium truncate max-w-[100px]">{user.name}</span>
+                </button>
+                <button
+                  onClick={onSignOut}
+                  className="p-1 text-slate-400 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                title="Sign in with Gmail, Yahoo, or custom email"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
+
             {/* View 4 Deliverable Files / Semantic HTML Code */}
             <button
               id="view-code-btn"
               onClick={onOpenCodeModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-medium transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-medium transition-colors"
               title="Inspect Delivered HTML5, CSS, and JS Files"
             >
               <Code className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Inspect Delivered Code</span>
-              <span className="sm:hidden">Files</span>
+              <span>Export Code</span>
             </button>
           </div>
         </div>
@@ -124,3 +181,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+

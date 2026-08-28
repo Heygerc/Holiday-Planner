@@ -4,7 +4,7 @@ import { formatCurrency } from '../utils/tripLinks';
 import { 
   MapPin, Plus, Trash2, Calendar, Clock, DollarSign, 
   Plane, Building2, Utensils, Compass, Bus, Edit3, 
-  Download, Printer, Share2, Sparkles, CheckCircle2, ChevronRight, X
+  Download, Printer, Share2, Sparkles, CheckCircle2, ChevronRight, X, BookmarkCheck
 } from 'lucide-react';
 
 interface ItineraryPlannerProps {
@@ -13,6 +13,8 @@ interface ItineraryPlannerProps {
   onUpdateTripPlan: (updated: TripPlan) => void;
   onNavigateToBudget: () => void;
   onAskAIItinerary: () => void;
+  onSaveItinerary?: () => void;
+  onOpenSavedList?: () => void;
 }
 
 export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
@@ -20,7 +22,9 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
   currency,
   onUpdateTripPlan,
   onNavigateToBudget,
-  onAskAIItinerary
+  onAskAIItinerary,
+  onSaveItinerary,
+  onOpenSavedList
 }) => {
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -214,6 +218,17 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({
 
           {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
+            {onSaveItinerary && (
+              <button
+                onClick={onSaveItinerary}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors cursor-pointer"
+                title="Save this trip to your account / browser session"
+              >
+                <BookmarkCheck className="w-4 h-4 text-white" />
+                <span>Save Itinerary</span>
+              </button>
+            )}
+
             <button
               onClick={onAskAIItinerary}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition-colors"

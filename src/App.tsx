@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TripPlan, PublicHoliday, LongWeekend, FlightOption, HotelOption, ItineraryDay } from './types';
+import { UserProfile, SavedItineraryRecord } from './types/auth';
+import { getStoredUser, saveUserSession, getStoredItineraries, saveItineraryRecord, deleteStoredItinerary } from './utils/authStorage';
 import { Navbar } from './components/Navbar';
 import { HolidayFinder } from './components/HolidayFinder';
 import { FlightHotelSearch } from './components/FlightHotelSearch';
@@ -8,6 +10,8 @@ import { BudgetCalculator } from './components/BudgetCalculator';
 import { TravelInsightView } from './components/TravelInsightView';
 import { DisqusComments } from './components/DisqusComments';
 import { CodeExportModal } from './components/CodeExportModal';
+import { AuthModal } from './components/AuthModal';
+import { SavedItinerariesModal } from './components/SavedItinerariesModal';
 import { Compass, Sparkles, Check, Info } from 'lucide-react';
 
 export default function App() {
@@ -15,6 +19,12 @@ export default function App() {
   const [currency, setCurrency] = useState<string>('SGD');
   const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // User Authentication & Saved Itineraries State
+  const [user, setUser] = useState<UserProfile | null>(() => getStoredUser());
+  const [savedItineraries, setSavedItineraries] = useState<SavedItineraryRecord[]>(() => getStoredItineraries());
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showSavedModal, setShowSavedModal] = useState<boolean>(false);
 
   // Search parameters to pass into FlightHotelSearch
   const [searchParams, setSearchParams] = useState({
@@ -313,6 +323,40 @@ export default function App() {
     showToast('Trip budget parameters saved and updated!');
   };
 
+  // 8. Save Current Itinerary to User Profile
+  const handleSaveCurrentItinerary = () => {
+    const saved = saveItineraryRecord(tripPlan, user);
+    setSavedItineraries(getStoredItineraries());
+    showToast(`Saved "${tripPlan.title || 'Trip'}" to your ${user ? user.name + "'s account" : 'local saved trips'}!`);
+  };
+
+  // 9. Load Itinerary from Saved List
+  const handleLoadSavedItinerary = (loadedTrip: TripPlan) => {
+    setTripPlan(loadedTrip);
+    showToast(`Loaded "${loadedTrip.title}" into Itinerary Planner!`);
+    setActiveTab('itinerary');
+  };
+
+  // 10. Delete Itinerary
+  const handleDeleteItinerary = (id: string) => {
+    const updated = deleteStoredItinerary(id);
+    setSavedItineraries(updated);
+    showToast('Itinerary removed from saved trips.');
+  };
+
+  // 11. Auth actions
+  const handleLoginSuccess = (profile: UserProfile, msg: string) => {
+    setUser(profile);
+    setSavedItineraries(getStoredItineraries());
+    showToast(msg);
+  };
+
+  const handleSignOut = () => {
+    saveUserSession(null);
+    setUser(null);
+    showToast('Signed out of traveler profile.');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       
@@ -324,6 +368,11 @@ export default function App() {
         setCurrency={setCurrency}
         selectedDestination={tripPlan.destinationCity}
         onOpenCodeModal={() => setShowCodeModal(true)}
+        user={user}
+        savedCount={savedItineraries.length}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onOpenSavedModal={() => setShowSavedModal(true)}
+        onSignOut={handleSignOut}
       />
 
       {/* Global Toast Notification */}
@@ -367,6 +416,8 @@ export default function App() {
             onUpdateTripPlan={setTripPlan}
             onNavigateToBudget={() => setActiveTab('budget')}
             onAskAIItinerary={() => setActiveTab('ai-insight')}
+            onSaveItinerary={handleSaveCurrentItinerary}
+            onOpenSavedList={() => setShowSavedModal(true)}
           />
         )}
 
@@ -429,6 +480,25 @@ export default function App() {
       <CodeExportModal
         isOpen={showCodeModal}
         onClose={() => setShowCodeModal(false)}
+      />
+
+      {/* Account Login / Sign Up Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Saved Itineraries Manager Modal */}
+      <SavedItinerariesModal
+        isOpen={showSavedModal}
+        onClose={() => setShowSavedModal(false)}
+        user={user}
+        savedList={savedItineraries}
+        currency={currency}
+        onLoadItinerary={handleLoadSavedItinerary}
+        onDeleteItinerary={handleDeleteItinerary}
+        onOpenAuth={() => setShowAuthModal(true)}
       />
     </div>
   );

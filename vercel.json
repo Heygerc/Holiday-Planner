@@ -7,6 +7,14 @@
       "destination": "/api/insight.js"
     },
     {
+      "source": "/api/holidays/:match*",
+      "destination": "/api/holidays.js"
+    },
+    {
+      "source": "/api/holidays",
+      "destination": "/api/holidays.js"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

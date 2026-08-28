@@ -33,28 +33,30 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
   const [showNextUpcomingOnly, setShowNextUpcomingOnly] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<'grid' | 'table'>('grid');
 
-  // Helper to fetch with dual-layer fallback (Local API -> Nager.Date Direct -> Fallback)
-  async function fetchWithFallback<T>(localUrl: string, directUrl: string, fallbackValue: T): Promise<T> {
-    try {
-      const localRes = await fetch(localUrl);
-      if (localRes.ok) {
-        const data = await localRes.json();
-        if (data && (!Array.isArray(data) || data.length > 0)) {
-          return data as T;
-        }
-      }
-    } catch {
-      // Ignore local error and try direct
-    }
-
+  // Helper to fetch directly from Nager.Date API with local serverless and static fallbacks
+  async function fetchWithFallback<T>(directUrl: string, localUrl: string, fallbackValue: T): Promise<T> {
     try {
       const directRes = await fetch(directUrl);
       if (directRes.ok) {
         const directData = await directRes.json();
-        return directData as T;
+        if (directData && (!Array.isArray(directData) || directData.length > 0)) {
+          return directData as T;
+        }
       }
     } catch {
-      // Ignore direct error and use fallback
+      // Direct API failed or blocked, try local proxy
+    }
+
+    try {
+      const localRes = await fetch(localUrl);
+      if (localRes.ok) {
+        const localData = await localRes.json();
+        if (localData && (!Array.isArray(localData) || localData.length > 0)) {
+          return localData as T;
+        }
+      }
+    } catch {
+      // Ignore local error and use static fallback
     }
 
     return fallbackValue;
@@ -65,8 +67,8 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
     async function loadCountries() {
       try {
         const loaded = await fetchWithFallback<CountryInfo[]>(
-          '/api/holidays/countries',
           'https://date.nager.at/api/v3/AvailableCountries',
+          '/api/holidays/countries',
           NAGER_COUNTRIES
         );
         if (Array.isArray(loaded) && loaded.length > 0) {
@@ -89,18 +91,25 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
         const [holidaysData, lwData, isTodayResult, nextData] = await Promise.all([
           // GET /PublicHolidays/{Year}/{CountryCode}
           fetchWithFallback<PublicHoliday[]>(
-            `/api/holidays/${selectedYear}/${selectedCountryCode}`,
             `https://date.nager.at/api/v3/PublicHolidays/${selectedYear}/${selectedCountryCode}`,
+            `/api/holidays/${selectedYear}/${selectedCountryCode}`,
             []
           ),
           // GET /LongWeekend/{Year}/{CountryCode}
           fetchWithFallback<LongWeekend[]>(
-            `/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`,
             `https://date.nager.at/api/v3/LongWeekend/${selectedYear}/${selectedCountryCode}`,
+            `/api/holidays/long-weekends/${selectedYear}/${selectedCountryCode}`,
             []
           ),
           // GET /IsTodayPublicHoliday/{CountryCode}
           (async () => {
+            try {
+              const directRes = await fetch(`https://date.nager.at/api/v3/IsTodayPublicHoliday/${selectedCountryCode}`);
+              if (directRes.status === 200) return true;
+              if (directRes.status === 204) return false;
+            } catch {
+              // Direct failed, try local
+            }
             try {
               const res = await fetch(`/api/holidays/is-today/${selectedCountryCode}`);
               if (res.ok) {
@@ -108,19 +117,14 @@ export const HolidayFinder: React.FC<HolidayFinderProps> = ({
                 return Boolean(data?.isTodayHoliday);
               }
             } catch {
-              // fallback to direct nager call
+              // fallback
             }
-            try {
-              const directRes = await fetch(`https://date.nager.at/api/v3/IsTodayPublicHoliday/${selectedCountryCode}`);
-              return directRes.status === 200;
-            } catch {
-              return false;
-            }
+            return false;
           })(),
           // GET /NextPublicHolidays/{CountryCode}
           fetchWithFallback<PublicHoliday[]>(
-            `/api/holidays/next/${selectedCountryCode}`,
             `https://date.nager.at/api/v3/NextPublicHolidays/${selectedCountryCode}`,
+            `/api/holidays/next/${selectedCountryCode}`,
             []
           )
         ]);
